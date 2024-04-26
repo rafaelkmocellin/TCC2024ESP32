@@ -85,16 +85,17 @@ void IRAM_ATTR carro_fim_inferior()//(1)Fin de curso Caro Inferior -
  */
   if(MOVIMENTANDO_CARRO)
   { 
-    
+    SentidoDeLimpesa = VindoLimpando;
+    EstadoDaLimpesa=INDOnaLimpesa;
     stepper.disableOutputs();
     LIMPANDO_PAINEL = false;
     MOVIMENTANDO_CARRO = false;
     digitalWrite(ENABLE, HIGH);
     analogWrite(PINO_MOTOR_DC1,0);//Desativa motor base
   }
-  if(LIMPANDO_PAINEL)
+  else//if(LIMPANDO_PAINEL)
   {
-     Esfrega=Esfrega*(-1);
+     SentidoDeLimpesa = VindoLimpando;
      EstadoDaLimpesa=INDOnaLimpesa;
   }
   
@@ -120,10 +121,9 @@ void IRAM_ATTR carro_fim_superior() //(2)Fin de curso Caro Superior +
     digitalWrite(ENABLE, HIGH);
     analogWrite(PINO_MOTOR_DC1,0);//Desativa motor base
   }
-  else if(LIMPANDO_PAINEL)
+  else// if(LIMPANDO_PAINEL)
   {
-    Esfrega=Esfrega*(-1);
-     //SentidoDeLimpesa = IndoLimpando;
+     SentidoDeLimpesa = IndoLimpando;
      //stepper.move(100);
      EstadoDaLimpesa=INDOnaLimpesa;
   }
@@ -382,25 +382,13 @@ void menu_serial()//2,0
     }
   }
 }
-/*
-String verifica_seriais() // verifica as seriais 
-{
-  if (Serial.available()) {
-    SerialBT.write(Serial.read());
 
-  }
-  if (SerialBT.available()) {
-    Serial.write(SerialBT.read());
- 
-  }
-return "";
-}
-*/
+
 //////////////////////////////////////////////////////////////////////////////////////
 //                             Movimeto do Carro
 //////////////////////////////////////////////////////////////////////////////////////
 
-void movimentar_carro() //Testar
+void movimentar_carro() 
 {
   if(stepper.currentPosition() == stepper.targetPosition())//(stepper.distanceToGo() == 0)
   {
@@ -430,8 +418,8 @@ void movimentar_carro() //Testar
 //////////////////////////////////////////////////////////////////////////////////////
 void limpar_painel() 
 {
-  //if (SentidoDeLimpesa==IndoLimpando)// limite de limpeza alcançado
- // {
+  if (SentidoDeLimpesa==IndoLimpando)// limite de limpeza alcançado
+  {
     if(EstadoDaLimpesa==INDOnaLimpesa)
     {
       if (stepper.distanceToGo() == 0)
@@ -450,7 +438,7 @@ void limpar_painel()
         SerialBT.print("Ii=_");SerialBT.print(stepper.distanceToGo());SerialBT.print("_=_");SerialBT.print(stepper.targetPosition());SerialBT.print("_=_");SerialBT.println(stepper.currentPosition());
       }    
       }
-   }
+    }
     else if(EstadoDaLimpesa==VINDOnaLimpesa)
     {
       if (stepper.distanceToGo()==0)
@@ -465,18 +453,17 @@ void limpar_painel()
 
       if(DEV == HIGH)//modo desenvolvedor
       {
-        Serial.print("Iv=_");Serial.print(stepper.distanceToGo());Serial.print("_=_");Serial.print(stepper.targetPosition());Serial.print("_=_");Serial.println(stepper.currentPosition());
-        SerialBT.print("Iv=_");SerialBT.print(stepper.distanceToGo());SerialBT.print("_=_");SerialBT.print(stepper.targetPosition());SerialBT.print("_=_");SerialBT.println(stepper.currentPosition());
+       Serial.print("Iv=_");Serial.print(stepper.distanceToGo());Serial.print("_=_");Serial.print(stepper.targetPosition());Serial.print("_=_");Serial.println(stepper.currentPosition());
+      SerialBT.print("Iv=_");SerialBT.print(stepper.distanceToGo());SerialBT.print("_=_");SerialBT.print(stepper.targetPosition());SerialBT.print("_=_");SerialBT.println(stepper.currentPosition());
       }
       }
     } 
 
   }
 
-  /*
+  
   if(SentidoDeLimpesa==VindoLimpando){
-
-    if(EstadoDaLimpesa == NDOnaLimpesa)
+    if(EstadoDaLimpesa==INDOnaLimpesa)
     {
       if (stepper.distanceToGo() == 0)
       {
@@ -488,11 +475,11 @@ void limpar_painel()
       digitalWrite(ENABLE, LOW);
       stepper.run();
 
-        if(DEV == HIGH)//modo desenvolvedor
-        {
+      if(DEV == HIGH)//modo desenvolvedor
+      {
         Serial.print("Vi=_");Serial.print(stepper.distanceToGo());Serial.print("_=_");Serial.print(stepper.targetPosition());Serial.print("_=_");Serial.println(stepper.currentPosition());
         SerialBT.print("Vi=_");SerialBT.print(stepper.distanceToGo());SerialBT.print("_=_");SerialBT.print(stepper.targetPosition());SerialBT.print("_=_");SerialBT.println(stepper.currentPosition());
-        }    
+      }    
       }
     }
     else if(EstadoDaLimpesa==VINDOnaLimpesa)
@@ -507,15 +494,15 @@ void limpar_painel()
       digitalWrite(ENABLE, LOW);
       stepper.run();
 
-        if(DEV == HIGH)//modo desenvolvedor
-        {
+      if(DEV == HIGH)//modo desenvolvedor
+      {
         Serial.print("Vv=_");Serial.print(stepper.distanceToGo());Serial.print("_=_");Serial.print(stepper.targetPosition());Serial.print("_=_");Serial.println(stepper.currentPosition());
         SerialBT.print("Vv=_");SerialBT.print(stepper.distanceToGo());SerialBT.print("_=_");SerialBT.print(stepper.targetPosition());SerialBT.print("_=_");SerialBT.println(stepper.currentPosition());
-        }
+      }
       }
     } 
-  }*/
-//}
+  }
+}
 
 void limite_de_trabalho(){
 // se o limie superior for atinguido (stepper.targetPosition)
