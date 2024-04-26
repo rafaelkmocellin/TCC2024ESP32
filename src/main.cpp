@@ -95,6 +95,7 @@ void IRAM_ATTR carro_fim_inferior()//(1)Fin de curso Caro Inferior -
   }
   else//if(LIMPANDO_PAINEL)
   {
+     digitalWrite(INTERNAL_LED, HIGH);  
      SentidoDeLimpesa = VindoLimpando;
      EstadoDaLimpesa=INDOnaLimpesa;
   }
@@ -123,6 +124,7 @@ void IRAM_ATTR carro_fim_superior() //(2)Fin de curso Caro Superior +
   }
   else// if(LIMPANDO_PAINEL)
   {
+     digitalWrite(INTERNAL_LED, HIGH);
      SentidoDeLimpesa = IndoLimpando;
      //stepper.move(100);
      EstadoDaLimpesa=INDOnaLimpesa;
@@ -274,7 +276,7 @@ void menu_serial()//2,0
       if (DEV == LOW)
       {
         Serial.println("   <<  MODO DESENVOLVEDOR ATIVADO >>");
-        digitalWrite(INTERNAL_LED,HIGH);
+        //digitalWrite(INTERNAL_LED,HIGH);
         DEV =  HIGH;
       }
       else
@@ -370,7 +372,7 @@ void menu_serial()//2,0
       if (DEV == LOW)
       {
         SerialBT.println("   <<  MODO DESENVOLVEDOR ATIVADO >>");
-        digitalWrite(INTERNAL_LED,HIGH);
+        //digitalWrite(INTERNAL_LED,HIGH);
         DEV =  HIGH;
       }
       else
