@@ -1,6 +1,7 @@
 #include <AccelStepper.h>
 #include <HardwareSerial.h>
 #include "BluetoothSerial.h"
+#include <neotimer.h>
 
 /*   Nome do dispositivo Bluetooth/
      "TCC2024LPF" 
@@ -23,8 +24,10 @@
 #error Bluetooth is not enabled! Please run `make menuconfig` to and enable it
 #endif
 
-
 BluetoothSerial SerialBT;
+
+//Timer
+Neotimer mytimer = Neotimer(10000); // esta em milisegundos
 
 //Pinos
 #define PINO_MOTOR_DC1 23//D1
@@ -35,14 +38,14 @@ BluetoothSerial SerialBT;
 #define PINO_FIM_DE_CURSO_1 33//39//11 //D3
 #define PINO_FIM_DE_CURSO_2 35//34//D4
 #define PINO_FIM_DE_CURSO_3 32//35//D8
-#define PINO_FIM_DE_CURSO_4 34//32//D0//nao esta funcinando
+#define PINO_FIM_DE_CURSO_4 34//32//D0
 #define INTERNAL_LED 2
 //Cria motor 
 AccelStepper stepper(1, PINO_MOTOR_A, PINO_MOTOR_B);
 int VelocidadeBase;
 
 //Constantes
-const long REGIAO_ATUACAO_CARRO = 1000;
+//////////////////////const long REGIAO_ATUACAO_CARRO = 1000;
 
 //ESTADOS DO CARRO
 volatile bool MOVIMENTANDO_CARRO = false;
@@ -52,14 +55,27 @@ volatile bool LIMPANDO_PAINEL = false;
 char comando;
 bool INDOnaLimpesa = 0;
 bool VINDOnaLimpesa = 1;
-bool EstadoDaLimpesa = INDOnaLimpesa;
-bool IndoLimpando = 0;
-bool VindoLimpando = 1;
-bool SentidoDeLimpesa = IndoLimpando;
+volatile bool EstadoDaLimpesa = INDOnaLimpesa;
+const bool IndoLimpando = 0;
+const bool VindoLimpando = 1;
+volatile bool SentidoDeLimpesa = IndoLimpando;
 int Esfrega;
 bool DEV = LOW;
 int AnovaPosicao;
 String texto;
+int contador;
+
+//Variáveis de debounce de interrupção
+unsigned long tempo_int_fc1 = 0;
+unsigned long tempo_int_fc2 = 0;
+//unsigned long tempo_int_fc3 = 0;
+//unsigned long tempo_int_fc4 = 0;  
+unsigned long ultimo_tempo_int_fc1 = 0;
+unsigned long ultimo_tempo_int_fc2 = 0;
+//unsigned long ultimo_tempo_int_fc3 = 0;
+//unsigned long ultimo_tempo_int_fc4 = 0;
+
+
 
 //Funcoes
 String verifica_seriais();
@@ -68,95 +84,95 @@ void menu_serial();
 void movimentar_carro();
 void limpar_painel();
 void limite_de_trabalho();
-
+void verifica_timer();
 
 // //Interrupcoes
 
 void IRAM_ATTR carro_fim_inferior()//(1)Fin de curso Caro Inferior -
 {
-  /*
-  stepper.disableOutputs();
+  tempo_int_fc1 = millis();
+  if (tempo_int_fc1 - ultimo_tempo_int_fc1 > 1000)
+  {  
+    if(MOVIMENTANDO_CARRO)
+    { 
+      
+      stepper.disableOutputs();
       LIMPANDO_PAINEL = false;
       MOVIMENTANDO_CARRO = false;
-      EstadoDaLimpesa = INDOnaLimpesa;
-      SentidoDeLimpesa = IndoLimpando;
       digitalWrite(ENABLE, HIGH);
-      analogWrite(PINO_MOTOR_DC1,0);
- */
-  if(MOVIMENTANDO_CARRO)
-  { 
-    SentidoDeLimpesa = VindoLimpando;
-    EstadoDaLimpesa=INDOnaLimpesa;
-    stepper.disableOutputs();
-    LIMPANDO_PAINEL = false;
-    MOVIMENTANDO_CARRO = false;
-    digitalWrite(ENABLE, HIGH);
-    analogWrite(PINO_MOTOR_DC1,0);//Desativa motor base
+      analogWrite(PINO_MOTOR_DC1,0);//Desativa motor base
+    }
+    else//if(LIMPANDO_PAINEL)
+    {
+    
+      //digitalWrite(INTERNAL_LED, HIGH);  
+      // digitalWrite(PINO_MOTOR_B, LOW);  
+    
+      SentidoDeLimpesa = VindoLimpando;
+      // EstadoDaLimpesa=INDOnaLimpesa;
+    }
   }
-  else//if(LIMPANDO_PAINEL)
-  {
-     digitalWrite(INTERNAL_LED, HIGH);  
-     SentidoDeLimpesa = VindoLimpando;
-     EstadoDaLimpesa=INDOnaLimpesa;
+  ultimo_tempo_int_fc1 = tempo_int_fc1;
+}
+void IRAM_ATTR carro_fim_superior() //(2)Fin de curso Caro Superior +
+{ 
+  tempo_int_fc2 = millis();
+  if (tempo_int_fc2 - ultimo_tempo_int_fc2 > 1000)
+  { 
+    digitalWrite(INTERNAL_LED, HIGH);
+    contador++;
+    if(MOVIMENTANDO_CARRO)
+    {  
+      stepper.disableOutputs();
+      LIMPANDO_PAINEL = false;
+      MOVIMENTANDO_CARRO = false;
+      digitalWrite(ENABLE, HIGH);
+      analogWrite(PINO_MOTOR_DC1,0);//Desativa motor base
+    }
+    else// if(LIMPANDO_PAINEL)
+    {   
+      
+      //digitalWrite(INTERNAL_LED, LOW);  
+      
+      
+      SentidoDeLimpesa = IndoLimpando;
+      
+    }
+    ultimo_tempo_int_fc2 = tempo_int_fc2;
   }
   
 }
-void IRAM_ATTR carro_fim_superior() //(2)Fin de curso Caro Superior +
-{
-  /*
-  stepper.disableOutputs();
-      LIMPANDO_PAINEL = false;
-      MOVIMENTANDO_CARRO = false;
-      EstadoDaLimpesa = INDOnaLimpesa;
-      SentidoDeLimpesa = IndoLimpando;
-      digitalWrite(ENABLE, HIGH);
-      analogWrite(PINO_MOTOR_DC1,0);
-  */
-  if(MOVIMENTANDO_CARRO)
-  {  
-    SentidoDeLimpesa = IndoLimpando;
-    EstadoDaLimpesa=INDOnaLimpesa;
-    stepper.disableOutputs();
-    LIMPANDO_PAINEL = false;
-    MOVIMENTANDO_CARRO = false;
-    digitalWrite(ENABLE, HIGH);
-    analogWrite(PINO_MOTOR_DC1,0);//Desativa motor base
-  }
-  else// if(LIMPANDO_PAINEL)
-  {
-     digitalWrite(INTERNAL_LED, HIGH);
-     SentidoDeLimpesa = IndoLimpando;
-     //stepper.move(100);
-     EstadoDaLimpesa=INDOnaLimpesa;
-  }
-}
 void IRAM_ATTR base_fim_inferior() ///Serial.println("(3)Fin de curso BASE Inferior -");
 {
- 
+ //contador++;
   analogWrite(PINO_MOTOR_DC1,0);
 }
 void IRAM_ATTR base_fim_superior()// Serial.println("(4)Fin de curso BASE Superior +");
 {
- 
+ //contador++;
   analogWrite(PINO_MOTOR_DC1,0);
 }
 
 void setup()
 {
+
+  mytimer.start();
+
+
   //PINOS
   pinMode(PINO_MOTOR_DC1,OUTPUT);
   pinMode(PINO_MOTOR_DC2,OUTPUT); 
   //analogWriteFreq(1000);
   pinMode(ENABLE, OUTPUT); 
   //FIM DE CURSOS
-  pinMode(PINO_FIM_DE_CURSO_1, INPUT_PULLUP);
-  attachInterrupt(PINO_FIM_DE_CURSO_1,carro_fim_inferior, RISING);
-  pinMode(PINO_FIM_DE_CURSO_2, INPUT_PULLUP);
-  attachInterrupt(PINO_FIM_DE_CURSO_2,carro_fim_superior, RISING);
-  pinMode(PINO_FIM_DE_CURSO_3,INPUT_PULLUP );
-  attachInterrupt(PINO_FIM_DE_CURSO_3,base_fim_inferior, RISING);
-  pinMode(PINO_FIM_DE_CURSO_4, INPUT_PULLUP);
-  attachInterrupt(PINO_FIM_DE_CURSO_4,base_fim_superior, RISING);
+  pinMode(PINO_FIM_DE_CURSO_1, INPUT);
+  attachInterrupt(PINO_FIM_DE_CURSO_1,carro_fim_inferior,RISING	 );
+  pinMode(PINO_FIM_DE_CURSO_2, INPUT);
+  attachInterrupt(PINO_FIM_DE_CURSO_2,carro_fim_superior, RISING	);
+  pinMode(PINO_FIM_DE_CURSO_3,INPUT);
+  attachInterrupt(PINO_FIM_DE_CURSO_3,base_fim_inferior, RISING	);
+  pinMode(PINO_FIM_DE_CURSO_4, INPUT);
+  attachInterrupt(PINO_FIM_DE_CURSO_4,base_fim_superior, RISING	);
   //LED AZUL INTERNO
   pinMode(INTERNAL_LED,OUTPUT);
   //CONFIGURA SERIAL
@@ -167,7 +183,8 @@ void setup()
   stepper.setMaxSpeed(2000); //SPEED = Steps / second
   stepper.setAcceleration(1000); //ACCELERATION = Steps /(second)^2
   //stepper.disableOutputs();
-  
+  //stepper.setSpeed(1500); //em tese apenas seta avelocidade da limpesa
+
   //CONFIGURA VELOCIDADE DO MOTOR BASE A 0
   VelocidadeBase=0;
   
@@ -183,8 +200,8 @@ void setup()
 
 void loop()
 {
-  //analogWrite(PINO_MOTOR_DC2,1000);
   
+  verifica_timer();
   menu_serial();
 
   //OPERACOES
@@ -257,6 +274,7 @@ void menu_serial()//2,0
       Serial.println("==PARANDO==");
       Serial.println("Apagou Variavei");
       Serial.println("Desativando Motores");
+      Serial.println(contador);
     }
     else if (command.endsWith("H")) 
     {
@@ -353,6 +371,7 @@ void menu_serial()//2,0
       SerialBT.println("==PARANDO==");
       SerialBT.println("Apagou Variavei");
       SerialBT.println("Desativando Motores");
+      Serial.println(contador);
     }
     else if (command.endsWith("H")) 
     {
@@ -420,90 +439,33 @@ void movimentar_carro()
 //////////////////////////////////////////////////////////////////////////////////////
 void limpar_painel() 
 {
-  if (SentidoDeLimpesa==IndoLimpando)// limite de limpeza alcançado
+  verifica_timer();
+  if (SentidoDeLimpesa==IndoLimpando)
   {
-    if(EstadoDaLimpesa==INDOnaLimpesa)
-    {
-      if (stepper.distanceToGo() == 0)
-      {
-      stepper.move(-1 * (Esfrega));
-      EstadoDaLimpesa=VINDOnaLimpesa;
-      }
-      else
-      {
-      digitalWrite(ENABLE, LOW);
-      stepper.run();
-
-      if(DEV == HIGH)//modo desenvolvedor
-      {
-        Serial.print("Ii=_");Serial.print(stepper.distanceToGo());Serial.print("_=_");Serial.print(stepper.targetPosition());Serial.print("_=_");Serial.println(stepper.currentPosition());
-        SerialBT.print("Ii=_");SerialBT.print(stepper.distanceToGo());SerialBT.print("_=_");SerialBT.print(stepper.targetPosition());SerialBT.print("_=_");SerialBT.println(stepper.currentPosition());
-      }    
-      }
-    }
-    else if(EstadoDaLimpesa==VINDOnaLimpesa)
-    {
-      if (stepper.distanceToGo()==0)
-      {
-        
-      stepper.move(Esfrega * 2);
-      EstadoDaLimpesa=INDOnaLimpesa;
-      }
-      else{
-      digitalWrite(ENABLE, LOW);
-      stepper.run();
-
-      if(DEV == HIGH)//modo desenvolvedor
-      {
-       Serial.print("Iv=_");Serial.print(stepper.distanceToGo());Serial.print("_=_");Serial.print(stepper.targetPosition());Serial.print("_=_");Serial.println(stepper.currentPosition());
-      SerialBT.print("Iv=_");SerialBT.print(stepper.distanceToGo());SerialBT.print("_=_");SerialBT.print(stepper.targetPosition());SerialBT.print("_=_");SerialBT.println(stepper.currentPosition());
-      }
-      }
-    } 
-
+    stepper.setSpeed(500);
+  }
+  else{
+    stepper.setSpeed(-500);
   }
 
+  digitalWrite(ENABLE, LOW);
+  stepper.runSpeed();
+
+    if(DEV == HIGH)//modo desenvolvedor
+    {
+      if (SentidoDeLimpesa==IndoLimpando)
+      {
+       Serial.print("Li=_");Serial.print(stepper.distanceToGo());Serial.print("_=_");Serial.print(stepper.targetPosition());Serial.print("_=_");Serial.println(stepper.currentPosition());
+      SerialBT.print("Li=_");SerialBT.print(stepper.distanceToGo());SerialBT.print("_=_");SerialBT.print(stepper.targetPosition());SerialBT.print("_=_");SerialBT.println(stepper.currentPosition());
+      }
+    
+      else{
+        Serial.print("Lv=_");Serial.print(stepper.distanceToGo());Serial.print("_=_");Serial.print(stepper.targetPosition());Serial.print("_=_");Serial.println(stepper.currentPosition());
+      SerialBT.print("Lv=_");SerialBT.print(stepper.distanceToGo());SerialBT.print("_=_");SerialBT.print(stepper.targetPosition());SerialBT.print("_=_");SerialBT.println(stepper.currentPosition());
+      }
+    }
   
-  if(SentidoDeLimpesa==VindoLimpando){
-    if(EstadoDaLimpesa==INDOnaLimpesa)
-    {
-      if (stepper.distanceToGo() == 0)
-      {
-      stepper.move(-1*(Esfrega * 2));
-      EstadoDaLimpesa=VINDOnaLimpesa;
-      }
-      else
-      {
-      digitalWrite(ENABLE, LOW);
-      stepper.run();
 
-      if(DEV == HIGH)//modo desenvolvedor
-      {
-        Serial.print("Vi=_");Serial.print(stepper.distanceToGo());Serial.print("_=_");Serial.print(stepper.targetPosition());Serial.print("_=_");Serial.println(stepper.currentPosition());
-        SerialBT.print("Vi=_");SerialBT.print(stepper.distanceToGo());SerialBT.print("_=_");SerialBT.print(stepper.targetPosition());SerialBT.print("_=_");SerialBT.println(stepper.currentPosition());
-      }    
-      }
-    }
-    else if(EstadoDaLimpesa==VINDOnaLimpesa)
-    {
-      if (stepper.distanceToGo()==0)
-      {
-        
-      stepper.move(Esfrega);
-      EstadoDaLimpesa=INDOnaLimpesa;
-      }
-      else{
-      digitalWrite(ENABLE, LOW);
-      stepper.run();
-
-      if(DEV == HIGH)//modo desenvolvedor
-      {
-        Serial.print("Vv=_");Serial.print(stepper.distanceToGo());Serial.print("_=_");Serial.print(stepper.targetPosition());Serial.print("_=_");Serial.println(stepper.currentPosition());
-        SerialBT.print("Vv=_");SerialBT.print(stepper.distanceToGo());SerialBT.print("_=_");SerialBT.print(stepper.targetPosition());SerialBT.print("_=_");SerialBT.println(stepper.currentPosition());
-      }
-      }
-    } 
-  }
 }
 
 void limite_de_trabalho(){
@@ -515,3 +477,12 @@ void limite_de_trabalho(){
 }
 
 
+
+void verifica_timer(){//timer ta funcionado
+  if(mytimer.done()){
+    digitalWrite(INTERNAL_LED,LOW);
+    Serial.println("Timer finished");Serial.println(contador);// mytimer.start(); para iniciar novamente
+  SerialBT.println("Timer finished");SerialBT.println(contador);
+  mytimer.start();
+  }
+}
