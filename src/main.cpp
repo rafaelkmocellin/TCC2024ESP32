@@ -3,19 +3,50 @@
 #include "BluetoothSerial.h"
 #include <neotimer.h>
 
-/*   Nome do dispositivo Bluetooth/
-     "TCC2024LPF" 
-    
-//////////////////🍀 Comandos uteis 🍀/////////////////////////////////////////////////////
-//                                                                                       //
-//    📕"H = Ajuda."                                                                   //
-//    🚗"(valor)+m = Valor que incrementa o posicionamneto do caro. exemplo: 100m"    //
-//    🏃"(valor)+v = Valor que corespondente a velocidade da base. exemplo: 500v"    //
-//    🧼"(valor)+l = Valor corespondente . exemplo: 500M"                           //
-//    🧯"@ = Apaga variaveis e desativa motores"                                   //
-//    🧑‍💻"D = Ativar/Desativar modo Desenvolvedor"                                 //
-//                                                                               //
-//////////////////////////////////////////////////////////////////////////////////
+/*     PROTÓTIPO DE BAIXO CUSTO PARA LIMPEZA DE PAINÉIS FOTOVOLTAICOS
+      
+      
+      ||    
+      ////////////////////////////////////////////////////////////////////////////////////////////////
+      //                          🍀 Comandos uteis 🍀                                            //
+      //                                                                                          //
+      //    📕"H = Ajuda."                                                                      //
+      //    🚗"(valor)+m = Valor que incrementa o posicionamneto do caro." exemplo: 100m       //
+      //    🏃"(valor)+v = Valor que corespondente a velocidade da base." exemplo: 500v       //
+      //    🧼"(valor)+l = Valor da velocidade do caro na limpeza ". exemplo: 200l           //
+      //    🧯"@ = Apaga variaveis e desativa motores"                                      //
+      //    🧑‍💻"D = Ativar/Desativar modo Desenvolvedor"                                    //
+      //    🤚"Q = Ativar/Desativar modo Limite de trabalho"                               \\
+      //    👆"(valor)+p = Atribui Limite Positivo de trabalho +" exemplo: 500p             \\
+      //    👇"(valor)+n = Atribui Limite Negativo de trabalho -" exemplo: 100n              \\
+      //    🚶"(valor)+w = Atribui Velocidade da Base na Limpeza" exemplo: 300w               \\
+      //    ⏲️"(valor)+t = Timer da Base na Limpeza,em milisegundos" exemplo: 10000t=10segundos\\
+      //                                                                                         \\
+      //                                                                                          \\
+      ////////////////////////////////////////////////////////////////////////////////////////////.\\
+      ||
+      ||
+      ||
+      ||
+ _    ||    __    _     
+|#|__|##|__|##|__|#|                                                                                                         
+|__|__|__[]__|__|__|                                               |>  v-v-v-v   |>
+|_|__|__|__|__|__|_|                                       ,   ,  /_\  |     |  /_\
+ \================/                                        |\_/|  | |'''''''''''| |          |\
+  \'._.'.__.'._.'/                                         (q p),-| | ||  _  || | |'-._       ))
+   |    .--.    |                                           \_/_(/| |    |#|    | | )  '-.___//
+   |    |  |    |      ,-'''''-.:-^-._                   .--w-w---'-'----'-'----'-'----------'--------.
+   |    |__|    |     /      '  ( `  _\                 :     Nome do dispositivo Bluetooth/           "                           
+   |    ====    |     \      \   _ .,-'         ...-._'             "TCC2024LPF"                       
+   |            |      )_\-._-._((_(       ~-~-'         
+  OLA o Objetivo Geral deste projeto é desenvolver um protótipo de baixo custo para manter 
+de forma autônoma os painéisfotovoltaicos limpos do Instituto Federal de Santa Catarina, 
+campus Chapecó.
+
+
+ 
+
+
 
 */
 
@@ -26,8 +57,7 @@
 
 BluetoothSerial SerialBT;
 
-//Timer
-Neotimer mytimer = Neotimer(10000); // esta em milisegundos
+
 
 //Pinos
 #define PINO_MOTOR_DC1 23//D1
@@ -40,19 +70,17 @@ Neotimer mytimer = Neotimer(10000); // esta em milisegundos
 #define PINO_FIM_DE_CURSO_3 32//35//D8
 #define PINO_FIM_DE_CURSO_4 34//32//D0
 #define INTERNAL_LED 2
+
 //Cria motor 
 AccelStepper stepper(1, PINO_MOTOR_A, PINO_MOTOR_B);
 int VelocidadeBase;
-
-//Constantes
-//////////////////////const long REGIAO_ATUACAO_CARRO = 1000;
 
 //ESTADOS DO CARRO
 volatile bool MOVIMENTANDO_CARRO = false;
 volatile bool LIMPANDO_PAINEL = false;
 volatile bool LIMITE_DE_TRABALHO_ATIVO = false;
 
-//Variaveis globais 
+//Constantes e Variaveis globais 
 char comando;
 bool INDOnaLimpesa = 0;
 bool VINDOnaLimpesa = 1;
@@ -71,6 +99,7 @@ int batidas = 0;
 int LimiteNegativo = 0;
 int LimitePositivo = 500;
 int VelocidadeBaseNaLimpeza = 300;
+int TempoTimer =10000;
 
 //Variáveis de debounce de interrupção
 unsigned long tempo_int_fc1 = 0;
@@ -85,16 +114,19 @@ unsigned long ultimo_tempo_int_fc2 = 0;
 
 
 //Funcoes
-String verifica_seriais();
-void imprimi_informacoes();
 void menu_serial();
 void movimentar_carro();
 void limpar_painel();
 void limite_de_trabalho();
 void verifica_timer();
 
-// //Interrupcoes
 
+//Timer
+Neotimer mytimer = Neotimer(TempoTimer); // esta em milisegundos
+
+//////////////////////////////////////////////////////////////////////////////////////
+//                             Interupções
+//////////////////////////////////////////////////////////////////////////////////////
 void IRAM_ATTR carro_fim_inferior()//(1)Fin de curso Caro Inferior -
 {
   tempo_int_fc1 = millis();
@@ -161,7 +193,9 @@ void IRAM_ATTR base_fim_superior()// Serial.println("(4)Fin de curso BASE Superi
  //contador++;
   analogWrite(PINO_MOTOR_DC1,0);
 }
-
+//////////////////////////////////////////////////////////////////////////////////////
+//                             Setup de inicialização
+//////////////////////////////////////////////////////////////////////////////////////
 void setup()
 {
   //inicialisa o timr para o debounce
@@ -206,7 +240,9 @@ void setup()
   //DESLIGA OLED AZUL PARA INDICAR o FIM DA INICIALIZACAO
  digitalWrite(INTERNAL_LED,LOW);
 }
-
+//////////////////////////////////////////////////////////////////////////////////////
+//                                Loop Principal
+//////////////////////////////////////////////////////////////////////////////////////
 void loop()
 {
   
@@ -222,7 +258,9 @@ void loop()
 
 }
 
-
+//////////////////////////////////////////////////////////////////////////////////////
+//                                  Menu Serial
+//////////////////////////////////////////////////////////////////////////////////////
 void menu_serial()//2,0
 {
 //menu_serial/////////////////////////////////////////////////////////////////////////
@@ -290,11 +328,17 @@ void menu_serial()//2,0
       int value = command.substring(0, command.length() - 1).toInt();
       
       Serial.println("H = Ajuda.");
-      Serial.println("(valor)+m = Valor que incrementa o posicionamneto do caro. exemplo: 100m");
-      Serial.println("(valor)+v = Valor que corespondente a velocidade da base. exemplo: 500v");
-      Serial.println("(valor)+l = Valor corespondente . exemplo: 500M");
+      Serial.println("(valor)+m = Valor que incrementa o posicionamneto do caro .exemplo: 100m");
+      Serial.println("(valor)+v = Valor que corespondente a velocidade da base .exemplo: 500v");
+      Serial.println("(valor)+l = Valor da velocidade do caro na limpeza . exemplo: 200l");
       Serial.println("@ = Apaga variaveis e desativa motores");
       Serial.println("D = Ativar/Desativar modo Desenvolvedor");
+      Serial.println("Q = Ativar/Desativa modo Limite de trabalho");
+      Serial.println("(valor)+p = Atribui Limite Positivo de trabalho + .exemplo: 500p");
+      Serial.println("(valor)+n = Atribui Limite Negativo de trabalho - .exemplo: 100n");
+      Serial.println("(valor)+w = Atribui Velocidade da Base na Limpeza .exemplo: 300w");
+      Serial.println("(valor)+t = Timer da Base na Limpeza, em milisegundos .exemplo: 10000t = 10segundos");
+    
     }
     else if (command.endsWith("D")) 
     {
@@ -352,6 +396,15 @@ void menu_serial()//2,0
       Serial.println("Atribuido Velocidade da Base na Limpeza");
 
     } 
+    else if (command.endsWith("t")) //tempo do timer de limpeza
+    {
+      int value = command.substring(0, command.length() - 1).toInt();
+      
+      TempoTimer=value;
+      Serial.println("Atribuido Velocidade da Base na Limpeza");
+
+    } 
+    
      
   }
   
@@ -426,9 +479,14 @@ void menu_serial()//2,0
       SerialBT.println("H = Ajuda.");
       SerialBT.println("(valor)+m = Valor que incrementa o posicionamneto do caro. exemplo: 100m");
       SerialBT.println("(valor)+v = Valor que corespondente a velocidade da base. exemplo: 500v");
-      SerialBT.println("(valor)+l = Valor corespondente . exemplo: 500M");
+      SerialBT.println("(valor)+l = Valor da velocidade do caro na limpeza . exemplo: 200l");
       SerialBT.println("@ = Apaga variaveis e desativa motores");
       SerialBT.println("D = Ativar/Desativar modo Desenvolvedor");
+      SerialBT.println("Q = Ativar/Desativa modo Limite de trabalho");
+      SerialBT.println("(valor)+p = Atribui Limite Positivo de trabalho + .exemplo: 500p");
+      SerialBT.println("(valor)+n = Atribui Limite Negativo de trabalho - .exemplo: 100n");
+      SerialBT.println("(valor)+w = Atribui Velocidade da Base na Limpeza .exemplo: 300w");
+      SerialBT.println("(valor)+t = Timer da Base na Limpeza, em milisegundos .exemplo: 10000t = 10segundos");
     }
     else if (command.endsWith("D")) 
     {
@@ -453,12 +511,12 @@ void menu_serial()//2,0
         
         if (LIMITE_DE_TRABALHO_ATIVO == LOW)
         {
-          Serial.println("   <<  Limite de trabalho ativo. >>");
+          SerialBT.println("   <<  Limite de trabalho ativo. >>");
           LIMITE_DE_TRABALHO_ATIVO = HIGH;
         }
         else
         {
-          Serial.println("   <<  Limite de trabalho ativo. >>");
+          SerialBT.println("   <<  Limite de trabalho ativo. >>");
           LIMITE_DE_TRABALHO_ATIVO = LOW;
         }
     }
@@ -467,7 +525,7 @@ void menu_serial()//2,0
       int value = command.substring(0, command.length() - 1).toInt();
       
       LimitePositivo=value;
-      Serial.println("Atribuido Limite Positivo +");
+      SerialBT.println("Atribuido Limite Positivo +");
 
     } 
     else if (command.endsWith("n")) 
@@ -475,7 +533,7 @@ void menu_serial()//2,0
       int value = command.substring(0, command.length() - 1).toInt();
       
       LimiteNegativo=value;
-      Serial.println("Atribuido Limite Negativo -");
+      SerialBT.println("Atribuido Limite Negativo -");
 
     } 
     else if (command.endsWith("w")) 
@@ -483,7 +541,15 @@ void menu_serial()//2,0
       int value = command.substring(0, command.length() - 1).toInt();
       
       VelocidadeBaseNaLimpeza=value;
-      Serial.println("Atribuido Velocidade da Base na Limpeza");
+      SerialBT.println("Atribuido Velocidade da Base na Limpeza");
+
+    } 
+    else if (command.endsWith("t")) 
+    {
+      int value = command.substring(0, command.length() - 1).toInt();
+      
+      TempoTimer=value;
+      SerialBT.println("Atribuido timer da Base na limpeza");
 
     } 
   }
@@ -575,6 +641,9 @@ void limpar_painel()
 
 }
 
+//////////////////////////////////////////////////////////////////////////////////////
+//                 Execução da Limpesa com modo Limite de Tabalho
+//////////////////////////////////////////////////////////////////////////////////////
 void limite_de_trabalho(){
 // se o limie superior for atinguido 
     if(stepper.currentPosition()>=LimitePositivo)//Sentidodelimpesa muda
@@ -619,7 +688,9 @@ void limite_de_trabalho(){
 }
 
 
-
+//////////////////////////////////////////////////////////////////////////////////////
+//                             Timer para limpiza
+//////////////////////////////////////////////////////////////////////////////////////
 void verifica_timer(){//timer ta funcionado
   
 
