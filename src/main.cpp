@@ -79,6 +79,7 @@ int VelocidadeBase;
 volatile bool MOVIMENTANDO_CARRO = false;
 volatile bool LIMPANDO_PAINEL = false;
 volatile bool LIMITE_DE_TRABALHO_ATIVO = false;
+volatile bool VOLTANDO_TERMINADO = false;
 
 //Constantes e Variaveis globais 
 char comando;
@@ -100,6 +101,8 @@ int LimiteNegativo = 0;
 int LimitePositivo = 500;
 int VelocidadeBaseNaLimpeza = 300;
 int TempoTimer =10000;
+int TavaDeSeguranca =true;
+int base_voltando = LOW;
 
 //Variáveis de debounce de interrupção
 unsigned long tempo_int_fc1 = 0;
@@ -119,10 +122,11 @@ void movimentar_carro();
 void limpar_painel();
 void limite_de_trabalho();
 void verifica_timer();
-
+void voltar_origem();
 
 //Timer
 Neotimer mytimer = Neotimer(TempoTimer); // esta em milisegundos
+
 
 //////////////////////////////////////////////////////////////////////////////////////
 //                             Interupções
@@ -186,20 +190,24 @@ void IRAM_ATTR carro_fim_superior() //(2)Fin de curso Caro Superior +
 void IRAM_ATTR base_fim_inferior() ///Serial.println("(3)Fin de curso BASE Inferior -");
 {
  //contador++;
-  analogWrite(PINO_MOTOR_DC1,0);
+  //analogWrite(PINO_MOTOR_DC1,0);
+   VOLTANDO_TERMINADO=HIGH;
+   base_voltando=HIGH;
 }
 void IRAM_ATTR base_fim_superior()// Serial.println("(4)Fin de curso BASE Superior +");
 {
  //contador++;
-  analogWrite(PINO_MOTOR_DC1,0);
+  //analogWrite(PINO_MOTOR_DC1,0);
+   VOLTANDO_TERMINADO=HIGH;
+  base_voltando=LOW;
 }
 //////////////////////////////////////////////////////////////////////////////////////
 //                             Setup de inicialização
 //////////////////////////////////////////////////////////////////////////////////////
 void setup()
 {
-  //inicialisa o timr para o debounce
-  mytimer.start();
+  //inicialisa o timr para o debounce////////////////////////////
+ // mytimer.start();
 
 
   //PINOS
@@ -255,6 +263,9 @@ void loop()
   //else
   if(LIMPANDO_PAINEL)
    limpar_painel();
+  
+  if(VOLTANDO_TERMINADO)
+   voltar_origem();
 
 }
 
@@ -287,10 +298,15 @@ void menu_serial()//2,0
     else if (command.endsWith("v")) 
     {
       int value = command.substring(0, command.length() - 1).toInt();
-      
+    
+
       VelocidadeBase = value;
+      if(VelocidadeBase>=0)
       analogWrite(PINO_MOTOR_DC1,VelocidadeBase);
     
+      if(VelocidadeBase<<0)
+      analogWrite(PINO_MOTOR_DC2,VelocidadeBase);
+
       Serial.println("Movimntando Base");
 
     } 
@@ -318,6 +334,7 @@ void menu_serial()//2,0
       SentidoDeLimpesa = IndoLimpando;
       digitalWrite(ENABLE, HIGH);
       analogWrite(PINO_MOTOR_DC1,0);
+      analogWrite(PINO_MOTOR_DC2,0);
       Serial.println("==PARANDO==");
       Serial.println("Apagou Variavei");
       Serial.println("Desativando Motores");
@@ -438,7 +455,7 @@ void menu_serial()//2,0
       int value = command.substring(0, command.length() - 1).toInt();
       
       VelocidadeBase = value;
-      analogWrite(PINO_MOTOR_DC1,VelocidadeBase);
+      analogWrite(PINO_MOTOR_DC1,VelocidadeBase);//////////////////////////////////// falat arumar................
     
       SerialBT.println("Movimntando Base");
 
@@ -467,6 +484,7 @@ void menu_serial()//2,0
       SentidoDeLimpesa = IndoLimpando;
       digitalWrite(ENABLE, HIGH);
       analogWrite(PINO_MOTOR_DC1,0);
+      analogWrite(PINO_MOTOR_DC2,0);
       SerialBT.println("==PARANDO==");
       SerialBT.println("Apagou Variavei");
       SerialBT.println("Desativando Motores");
@@ -591,8 +609,9 @@ void movimentar_carro()
 //////////////////////////////////////////////////////////////////////////////////////
 void limpar_painel() 
 {
-  if(LIMITE_DE_TRABALHO_ATIVO)
+  if(LIMITE_DE_TRABALHO_ATIVO){
   limite_de_trabalho();
+  }
 
   if (SentidoDeLimpesa==IndoLimpando)
   {
@@ -601,6 +620,7 @@ void limpar_painel()
    if(SentidoDeLimpesa==VindoLimpando){
     stepper.setSpeed(-Esfrega);
   }
+
   if(SentidoDeLimpesa==MovendoBaseLimpando){
     stepper.setSpeed(0);
     //desativar motor
@@ -608,19 +628,27 @@ void limpar_painel()
     digitalWrite(ENABLE, HIGH);
   }
 
-  if (batidas >= 4)
-  {
+  if (batidas >= 4){
+  
     SentidoDeLimpesa=MovendoBaseLimpando;
     batidas=0;
     analogWrite(PINO_MOTOR_DC1,VelocidadeBaseNaLimpeza);//moviemta base
     mytimer.start();
+    TavaDeSeguranca=false;
+    Serial.println("Cabim");
+    SerialBT.println("Cabim");
+  } 
+  if(TavaDeSeguranca==false){
+     batidas=0;
+
+      SerialBT.println("seguranca");//////////////////////////
+      SentidoDeLimpesa = MovendoBaseLimpando;
   }
   
-
-
-
+  if(SentidoDeLimpesa!=MovendoBaseLimpando){// movimenta o caro na limpeza Rum...
   digitalWrite(ENABLE, LOW);
   stepper.runSpeed();
+  }
 
     if(DEV == HIGH)//modo desenvolvedor
     {
@@ -645,6 +673,7 @@ void limpar_painel()
 //                 Execução da Limpesa com modo Limite de Tabalho
 //////////////////////////////////////////////////////////////////////////////////////
 void limite_de_trabalho(){
+  
 // se o limie superior for atinguido 
     if(stepper.currentPosition()>=LimitePositivo)//Sentidodelimpesa muda
       {
@@ -656,6 +685,7 @@ void limite_de_trabalho(){
           MOVIMENTANDO_CARRO = false;
           digitalWrite(ENABLE, HIGH);
           analogWrite(PINO_MOTOR_DC1,0);//Desativa motor base
+          analogWrite(PINO_MOTOR_DC2,0);
         }
         else
         {
@@ -674,6 +704,7 @@ void limite_de_trabalho(){
           MOVIMENTANDO_CARRO = false;
           digitalWrite(ENABLE, HIGH);
           analogWrite(PINO_MOTOR_DC1,0);//Desativa motor base
+          analogWrite(PINO_MOTOR_DC2,0);
         }
         else// 
         {   
@@ -692,7 +723,7 @@ void limite_de_trabalho(){
 //                             Timer para limpiza
 //////////////////////////////////////////////////////////////////////////////////////
 void verifica_timer(){//timer ta funcionado
-  
+  SerialBT.println("timer verificou");
 
   if(mytimer.done())
   {
@@ -701,8 +732,24 @@ void verifica_timer(){//timer ta funcionado
     SerialBT.println("Timer Acabou");  SerialBT.println(batidas);
     //mytimer.start();
     analogWrite(PINO_MOTOR_DC1,0);
+    analogWrite(PINO_MOTOR_DC2,0);
     SentidoDeLimpesa = AuxSentidoDeLimpesa;
     digitalWrite(INTERNAL_LED,LOW);
+    TavaDeSeguranca=true;
   }
+
   
 }
+// add voltar par base quando fim de curso atingido
+void voltar_origem(){
+  if(base_voltando==LOW){
+    analogWrite(PINO_MOTOR_DC1,0);
+    analogWrite(PINO_MOTOR_DC2,0);
+  }
+  if(base_voltando==HIGH){
+    analogWrite(PINO_MOTOR_DC1,0);
+    analogWrite(PINO_MOTOR_DC2,1000);
+  }
+  VOLTANDO_TERMINADO=LOW;
+}
+// add um jeito de girat o moror da base ao contrario
