@@ -747,8 +747,8 @@ void voltar_origem(){
     analogWrite(PINO_MOTOR_DC2,0);
   }
   if(base_voltando==HIGH){
-    analogWrite(PINO_MOTOR_DC1,0);
-    analogWrite(PINO_MOTOR_DC2,1000);
+    analogWrite(PINO_MOTOR_DC1,1000);
+    analogWrite(PINO_MOTOR_DC2,0);
   }
   VOLTANDO_TERMINADO=LOW;
 }
